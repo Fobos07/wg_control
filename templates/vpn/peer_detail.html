@@ -78,7 +78,9 @@
 
         {% if peer.has_private_key %}
         <div class="text-center">
-          <img src="{% url 'peer_qr' peer.pk %}" alt="WireGuard QR" class="qr-img">
+          <img src="{% url 'peer_qr' peer.pk %}" alt="WireGuard QR" class="qr-img"
+               width="220" height="220"
+               style="width:220px;height:220px;max-width:100%;background:#fff;padding:8px;border-radius:.5rem;box-sizing:border-box;object-fit:contain;">
           <div class="form-text">Scan with the WireGuard mobile app</div>
         </div>
         {% endif %}
