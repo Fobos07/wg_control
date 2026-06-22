@@ -1,0 +1,29 @@
+# Install as /etc/systemd/system/wgpanel.service
+# Then: systemctl daemon-reload && systemctl enable --now wgpanel
+
+[Unit]
+Description=WireGuard control panel (gunicorn)
+After=network.target
+
+[Service]
+User=wgpanel
+Group=wgpanel
+WorkingDirectory=/opt/wg_control
+EnvironmentFile=/opt/wg_control/.env
+ExecStart=/opt/wg_control/.venv/bin/gunicorn config.wsgi:application \
+          --bind 127.0.0.1:8001 \
+          --workers 3 \
+          --access-logfile - \
+          --error-logfile -
+Restart=on-failure
+RestartSec=5
+
+# Hardening. NOTE: NoNewPrivileges must stay false (default) — the panel relies
+# on sudo to run the helper. ProtectSystem=true leaves /etc writable so the
+# helper can update /etc/wireguard/<iface>.conf; do NOT raise it to "full"/"strict"
+# without adding ReadWritePaths=/etc/wireguard.
+ProtectSystem=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

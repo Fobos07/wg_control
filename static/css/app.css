@@ -1,0 +1,43 @@
+:root {
+  --wg-accent: #88171a;
+}
+
+body {
+  min-height: 100vh;
+}
+
+.navbar-brand {
+  letter-spacing: -0.02em;
+}
+
+.card {
+  border-radius: 0.6rem;
+}
+
+.config-box {
+  background: var(--bs-tertiary-bg);
+  border: 1px solid var(--bs-border-color);
+  border-radius: 0.5rem;
+  padding: 0.85rem 1rem;
+  white-space: pre;
+  overflow-x: auto;
+  font-family: var(--bs-font-monospace);
+  line-height: 1.45;
+}
+
+.qr-img {
+  width: 220px;
+  height: 220px;
+  max-width: 100%;
+  background: #fff;
+  padding: 8px;
+  border-radius: 0.5rem;
+}
+
+code {
+  color: var(--bs-info-text-emphasis);
+}
+
+dt {
+  font-weight: 500;
+}

@@ -1,0 +1,16 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "wgpanel",
+      "runtimeExecutable": "C:/Users/danuil/Documents/projects/wg_control/.venv/Scripts/python.exe",
+      "runtimeArgs": [
+        "C:/Users/danuil/Documents/projects/wg_control/manage.py",
+        "runserver",
+        "8000",
+        "--noreload"
+      ],
+      "port": 8000
+    }
+  ]
+}

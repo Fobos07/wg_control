@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Settings — WireGuard Panel{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">Settings</li>
+  </ol>
+</nav>
+
+<h1 class="h4 mb-4">Interface <code>{{ interface.name }}</code></h1>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <h2 class="h6 text-secondary mb-3">Configuration</h2>
+        <form method="post" novalidate>
+          {% csrf_token %}
+          {% for field in form %}
+            {% include "partials/field.html" with field=field %}
+          {% endfor %}
+          <button class="btn btn-primary" type="submit">Save & apply</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h2 class="h6 text-secondary mb-0">Generated server config</h2>
+          <a class="btn btn-sm btn-outline-secondary" href="{% url 'server_config_download' %}">Download</a>
+        </div>
+        <p class="form-text mt-0">This is what the panel writes to <code>/etc/wireguard/{{ interface.name }}.conf</code> and applies with <code>wg syncconf</code>.</p>
+        <pre class="config-box small mb-0">{{ server_config }}</pre>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,158 @@
+{% extends "base.html" %}
+{% load humanize %}
+{% block title %}Dashboard — WireGuard Panel{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+  <div class="col-lg-5">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-start">
+          <div>
+            <h2 class="h5 mb-1">Interface <code>{{ interface.name }}</code></h2>
+            <span id="iface-badge" class="badge {% if status.active %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+              {% if status.active %}active{% else %}inactive{% endif %}
+            </span>
+            <span class="badge text-bg-dark"><span id="online-count">{{ online_count }}</span>/<span id="total-count">{{ total_count }}</span> online</span>
+          </div>
+          <a href="{% url 'interface_settings' %}" class="btn btn-sm btn-outline-secondary">Settings</a>
+        </div>
+
+        <dl class="row mt-3 mb-0 small">
+          <dt class="col-5 text-secondary">Public endpoint</dt>
+          <dd class="col-7">{{ interface.endpoint|default:"—" }}</dd>
+          <dt class="col-5 text-secondary">Listen port</dt>
+          <dd class="col-7">{{ interface.listen_port }}</dd>
+          <dt class="col-5 text-secondary">Tunnel address</dt>
+          <dd class="col-7">{{ interface.address }}</dd>
+          <dt class="col-5 text-secondary">Server public key</dt>
+          <dd class="col-7"><code class="text-break small">{{ interface.public_key|default:"—" }}</code></dd>
+        </dl>
+
+        <hr>
+        <div class="d-flex flex-wrap gap-2">
+          <form method="post" action="{% url 'action_sync' %}">{% csrf_token %}
+            <button class="btn btn-sm btn-primary">Apply config</button>
+          </form>
+          <form method="post" action="{% url 'action_restart' %}">{% csrf_token %}
+            <button class="btn btn-sm btn-warning">Restart service</button>
+          </form>
+          {% if status.active %}
+            <form method="post" action="{% url 'action_down' %}">{% csrf_token %}
+              <button class="btn btn-sm btn-outline-danger">Bring down</button>
+            </form>
+          {% else %}
+            <form method="post" action="{% url 'action_up' %}">{% csrf_token %}
+              <button class="btn btn-sm btn-outline-success">Bring up</button>
+            </form>
+          {% endif %}
+          <form method="post" action="{% url 'action_import' %}"
+                onsubmit="return confirm('Import peers from the running {{ interface.name }}.conf into the panel?');">
+            {% csrf_token %}
+            <button class="btn btn-sm btn-outline-info">Import from {{ interface.name }}.conf</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-7">
+    <div class="card h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h2 class="h5 mb-0">Peers</h2>
+          <a href="{% url 'peer_create' %}" class="btn btn-sm btn-success">+ Add peer</a>
+        </div>
+
+        {% if peer_rows %}
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr class="text-secondary small">
+                <th>Name</th><th>IP</th><th>Status</th><th>Handshake</th>
+                <th class="text-end">↓ / ↑</th><th></th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in peer_rows %}
+              <tr data-pubkey="{{ row.peer.public_key }}" {% if not row.peer.enabled %}class="opacity-50"{% endif %}>
+                <td>
+                  <a href="{% url 'peer_detail' row.peer.pk %}" class="text-decoration-none fw-medium">{{ row.peer.name }}</a>
+                  {% if not row.peer.enabled %}<span class="badge text-bg-secondary ms-1">disabled</span>{% endif %}
+                </td>
+                <td><code class="small">{{ row.peer.primary_ip }}</code></td>
+                <td>
+                  <span class="js-status badge {% if row.live.online %}text-bg-success{% else %}text-bg-secondary{% endif %}">
+                    {% if row.live.online %}online{% else %}offline{% endif %}
+                  </span>
+                </td>
+                <td class="small text-secondary js-handshake">
+                  {% if row.live.handshake_ago is not None %}{{ row.live.handshake_ago }}s ago{% else %}never{% endif %}
+                </td>
+                <td class="text-end small text-nowrap">
+                  <span class="js-rx">{{ row.live.rx|filesizeformat }}</span> /
+                  <span class="js-tx">{{ row.live.tx|filesizeformat }}</span>
+                </td>
+                <td class="text-end">
+                  <a href="{% url 'peer_detail' row.peer.pk %}" class="btn btn-sm btn-outline-secondary py-0">View</a>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+          <p class="text-secondary mb-0">No peers yet. Add one or import from <code>{{ interface.name }}.conf</code>.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const STATS_URL = "{% url 'stats_json' %}";
+
+function fmtBytes(n) {
+  if (!n) return "0 bytes";
+  const units = ["bytes", "KB", "MB", "GB", "TB"];
+  let i = 0, v = n;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+  return (i === 0 ? v : v.toFixed(1)) + " " + units[i];
+}
+function fmtAgo(s) {
+  if (s === null || s === undefined) return "never";
+  if (s < 60) return s + "s ago";
+  if (s < 3600) return Math.floor(s / 60) + "m ago";
+  if (s < 86400) return Math.floor(s / 3600) + "h ago";
+  return Math.floor(s / 86400) + "d ago";
+}
+
+async function refreshStats() {
+  try {
+    const res = await fetch(STATS_URL, {headers: {"X-Requested-With": "fetch"}});
+    if (!res.ok) return;
+    const data = await res.json();
+
+    const ib = document.getElementById("iface-badge");
+    ib.textContent = data.active ? "active" : "inactive";
+    ib.className = "badge " + (data.active ? "text-bg-success" : "text-bg-secondary");
+    document.getElementById("online-count").textContent = data.online_count;
+    document.getElementById("total-count").textContent = data.total_count;
+
+    document.querySelectorAll("tr[data-pubkey]").forEach(tr => {
+      const p = data.peers[tr.dataset.pubkey];
+      if (!p) return;
+      const st = tr.querySelector(".js-status");
+      st.textContent = p.online ? "online" : "offline";
+      st.className = "js-status badge " + (p.online ? "text-bg-success" : "text-bg-secondary");
+      tr.querySelector(".js-handshake").textContent = fmtAgo(p.handshake_ago);
+      tr.querySelector(".js-rx").textContent = fmtBytes(p.rx);
+      tr.querySelector(".js-tx").textContent = fmtBytes(p.tx);
+    });
+  } catch (e) { /* keep last values on transient errors */ }
+}
+setInterval(refreshStats, 10000);
+</script>
+{% endblock %}

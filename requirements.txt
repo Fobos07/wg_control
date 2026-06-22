@@ -1,0 +1,5 @@
+Django>=5.1,<5.2
+gunicorn>=22.0
+qrcode[pil]>=7.4
+cryptography>=42.0
+python-dotenv>=1.0

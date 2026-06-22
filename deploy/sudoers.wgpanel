@@ -1,0 +1,7 @@
+# Install as /etc/sudoers.d/wgpanel  (chmod 440, owned root:root)
+# Validate before saving:  visudo -cf /etc/sudoers.d/wgpanel
+#
+# Lets the panel's system user run ONLY the helper script as root, with no
+# password. The helper itself validates every argument.
+
+wgpanel ALL=(root) NOPASSWD: /usr/local/sbin/wgpanel-helper

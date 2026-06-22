@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}{{ peer.name }} — WireGuard Panel{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb">
+  <ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+    <li class="breadcrumb-item active">{{ peer.name }}</li>
+  </ol>
+</nav>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h1 class="h4 mb-0">
+    {{ peer.name }}
+    {% if peer.enabled %}<span class="badge text-bg-success align-middle">enabled</span>
+    {% else %}<span class="badge text-bg-secondary align-middle">disabled</span>{% endif %}
+  </h1>
+  <div class="d-flex gap-2">
+    <a href="{% url 'peer_edit' peer.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+    <form method="post" action="{% url 'peer_toggle' peer.pk %}">{% csrf_token %}
+      <button class="btn btn-sm btn-outline-warning">{% if peer.enabled %}Disable{% else %}Enable{% endif %}</button>
+    </form>
+    <form method="post" action="{% url 'peer_delete' peer.pk %}"
+          onsubmit="return confirm('Delete peer “{{ peer.name }}”? This removes it from {{ interface.name }}.');">
+      {% csrf_token %}
+      <button class="btn btn-sm btn-outline-danger">Delete</button>
+    </form>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <h2 class="h6 text-secondary">Details</h2>
+        <dl class="row small mb-0">
+          <dt class="col-4 text-secondary">Tunnel IP</dt><dd class="col-8"><code>{{ peer.address }}</code></dd>
+          <dt class="col-4 text-secondary">Public key</dt><dd class="col-8"><code class="text-break">{{ peer.public_key }}</code></dd>
+          <dt class="col-4 text-secondary">Preshared key</dt><dd class="col-8">{% if peer.preshared_key %}<span class="badge text-bg-dark">set</span>{% else %}—{% endif %}</dd>
+          <dt class="col-4 text-secondary">Client DNS</dt><dd class="col-8">{{ peer.effective_dns|default:"—" }}</dd>
+          <dt class="col-4 text-secondary">AllowedIPs</dt><dd class="col-8"><code class="text-break">{{ peer.effective_allowed_ips }}</code></dd>
+          <dt class="col-4 text-secondary">Keepalive</dt><dd class="col-8">{{ peer.effective_keepalive|default:"—" }}</dd>
+          <dt class="col-4 text-secondary">Created</dt><dd class="col-8">{{ peer.created_at }}</dd>
+        </dl>
+        {% if peer.notes %}<hr><p class="small mb-0">{{ peer.notes|linebreaksbr }}</p>{% endif %}
+
+        <hr>
+        <form method="post" action="{% url 'peer_regen_keys' peer.pk %}"
+              onsubmit="return confirm('Regenerate keys? The old client config will stop working.');">
+          {% csrf_token %}
+          <button class="btn btn-sm btn-outline-danger">Regenerate keys</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-6">
+    <div class="card">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h2 class="h6 text-secondary mb-0">Client configuration</h2>
+          <div class="d-flex gap-2">
+            <button class="btn btn-sm btn-outline-secondary" onclick="copyConfig()">Copy</button>
+            <a class="btn btn-sm btn-primary" href="{% url 'peer_config_download' peer.pk %}">Download .conf</a>
+          </div>
+        </div>
+
+        {% if not peer.has_private_key %}
+          <div class="alert alert-warning small">
+            This peer was imported, so the server does not know its private key.
+            The config below is a template — fill in the client's private key, or
+            <strong>Regenerate keys</strong> to issue a fresh config (the client
+            must then use the new key).
+          </div>
+        {% endif %}
+
+        <pre class="config-box small mb-3" id="client-config">{{ client_config }}</pre>
+
+        {% if peer.has_private_key %}
+        <div class="text-center">
+          <img src="{% url 'peer_qr' peer.pk %}" alt="WireGuard QR" class="qr-img">
+          <div class="form-text">Scan with the WireGuard mobile app</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function copyConfig() {
+  const txt = document.getElementById("client-config").textContent;
+  navigator.clipboard.writeText(txt).then(() => {
+    const btn = event.target;
+    const old = btn.textContent;
+    btn.textContent = "Copied!";
+    setTimeout(() => btn.textContent = old, 1500);
+  });
+}
+</script>
+{% endblock %}
